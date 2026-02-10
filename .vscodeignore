@@ -1,0 +1,8 @@
+.vscode/**
+src/**
+test/**
+articles/**
+node_modules/vitest/**
+node_modules/@vitest/**
+**/*.map
+**/*.ts
