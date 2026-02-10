@@ -1,86 +1,122 @@
 # Zotero Agent Bridge for VS Code/Cursor
 
-A local-first VS Code extension that lets coding/writing agents work with your Zotero library while you write academic papers.
-
-It is designed for agent-assisted workflows in:
-- VS Code
-- Cursor
-- other agentic IDE environments (including Google Antigravity-style workflows)
-
-## Purpose
-
-When writing an academic paper with an agent, you need your literature corpus in-context.
-This extension gives you a practical bridge from Zotero into your workspace so agents can:
-- reference your saved papers
-- summarize highlights and notes
-- compare sources
-- draft sections grounded in your own library
+Local-first Zotero export for VS Code-compatible editors, designed for AI-assisted academic writing workflows.
 
 ## What It Does
 
-- Searches your **local Zotero database** (offline-first).
-- Supports **My Library + Group Libraries**.
-- Lets you:
-  - search and multi-select items
-  - export a whole collection
-- Exports each item into markdown + optional PDF so agents can use files directly.
+- Search your local Zotero library (My Library and group libraries).
+- Export selected items or whole collections to Markdown + optional PDF files.
+- Include Zotero metadata, highlights, and notes so agents can work directly from your own sources.
+- Work offline against your local `zotero.sqlite` and `storage` folders.
 
-## Exported Output
+## Screenshots
 
-For each exported item:
-- Markdown file with YAML frontmatter metadata
-- `Highlights` section (from Zotero PDF annotations)
-- `Notes` section (from Zotero child notes)
-- PDF copy when available/selected
+### Three-line picker (title, authors, metadata)
 
-If no PDF exists, metadata/notes/highlights are still exported.
+![Three-line Zotero picker](docs/images/three-line-picker.png)
 
-## Collection Export Modes
+### PDF + highlights workflow in-editor
 
-Collection exports always go into a collection-named subfolder under your export root.
+![PDF and highlights workflow](docs/images/workflow-pdf-highlights.png)
 
-Two modes:
-- **Single collection folder**: all items into one folder
-- **Mirror sub-collections**: nested subfolders matching Zotero sub-collections
+### Multi-file analysis workflow with agent panel
 
-## Current UX/Workflow
+![Comparative analysis workflow](docs/images/workflow-comparative-analysis.png)
 
-1. Run `Zotero: Search And Export Items` or `Zotero: Export Collection`.
-2. Select items (or collection).
-3. Review selected items in output panel.
-4. Confirm export.
-5. Files are written to your configured export folder.
-
-## VS Code Commands
+## Commands
 
 - `Zotero: Search And Export Items`
 - `Zotero: Export Collection`
 - `Zotero: Configure Local Paths`
 
-## Workspace Settings
+## Keyboard Shortcut
 
-- `vscodezotero.sqlitePath`
-- `vscodezotero.storagePath`
-- `vscodezotero.outputPath`
-- `vscodezotero.outputFolderName`
-- `vscodezotero.layoutMode` (`item-folder`, `flat`, `year-item`)
-- `vscodezotero.maxSearchResults`
+- Default shortcut for quick launch:
+  - macOS: `Cmd+Alt+Z`
+  - Windows/Linux: `Ctrl+Alt+Z`
+- This runs `Zotero: Search And Export Items`.
+- You can rebind it in Keyboard Shortcuts by searching for `vscodezotero.searchAndExport`.
 
-The extension prompts once for missing destination/layout settings and then reuses them.
+## Search and Selection UX
 
-## Typical Agent Use Cases
+When you run `Zotero: Search And Export Items`, each row in the picker shows:
+
+- Line 1: title
+- Line 2: authors
+- Line 3: publication year, added year, edited year, PDF availability, note count
+
+Picker actions:
+
+- Filter by title/authors/metadata
+- Multi-select with checkboxes
+- `Select All` and `Clear`
+- `Export Selected` or `Cancel`
+
+## Export Functionality (Detailed)
+
+Per exported Zotero item:
+
+- Markdown file with YAML frontmatter metadata
+- `Highlights` section from PDF annotations
+- `Notes` section from Zotero child notes
+- PDF copy (if available and selected)
+
+Even if no PDF exists, metadata/notes/highlights export still runs.
+
+## Collection Export Modes
+
+Collection exports create a collection-named folder inside your export root.
+
+- `Single collection folder`: all selected collection items into one folder
+- `Mirror sub-collections`: preserve nested collection structure as subfolders
+
+## Path Setup and Options
+
+Configure paths via command:
+
+- Run `Zotero: Configure Local Paths`
+
+Or set workspace settings directly:
+
+- `vscodezotero.sqlitePath`  
+  Absolute path to `zotero.sqlite`.  
+  If empty, extension attempts auto-discovery.
+
+- `vscodezotero.storagePath`  
+  Absolute path to Zotero `storage` folder.  
+  If empty, extension tries sibling `storage` next to resolved sqlite path.
+
+- `vscodezotero.outputPath`  
+  Absolute output folder for exports.  
+  If empty, extension prompts and then saves the selected location.
+
+- `vscodezotero.outputFolderName`  
+  Default folder name under workspace root when output path is not set (`articles` by default).
+
+- `vscodezotero.layoutMode`  
+  Export layout:
+  - `item-folder`: `articles/<slug>/item.md` + PDFs in same folder
+  - `flat`: `articles/<slug>.md` + prefixed PDFs
+  - `year-item`: `articles/<year>/<slug>/item.md` + PDFs in same folder
+  If empty, extension prompts once and saves your choice.
+
+- `vscodezotero.maxSearchResults`  
+  Max results shown in picker (default `200`, min `20`, max `1000`).
+
+## Typical Agent Workflows
 
 After export, ask your agent to:
-- "Summarize all papers in `/articles` relevant to section 2."
-- "Compare findings from these 5 exported papers and list disagreements."
-- "Build a literature review paragraph using notes/highlights from these files."
-- "Extract methods and sample sizes from all markdown files in this collection folder."
 
-## Privacy and Data
+- Summarize key findings across exported papers.
+- Compare methods/results across selected studies.
+- Draft a literature review section grounded in highlights/notes.
+- Extract variables (sample size, model, outcomes) into structured tables.
 
-- Uses your local Zotero DB and local attachment storage.
-- Does not require Zotero Web API credentials.
-- No sync/write-back to Zotero in v1.
+## Privacy
+
+- Uses local Zotero DB and local attachment files only.
+- No Zotero Web API credentials required.
+- No write-back/sync into Zotero in this version.
 
 ## Development
 
@@ -90,6 +126,7 @@ npm run compile
 npm test
 ```
 
-To run in extension dev host:
-- open this project in VS Code
-- press `F5`
+Run in VS Code extension host:
+
+- Open this project in VS Code
+- Press `F5`
