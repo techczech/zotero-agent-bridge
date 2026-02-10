@@ -1,0 +1,92 @@
+{
+  "name": "vscodezotero",
+  "displayName": "VS Code Zotero Export",
+  "description": "Search local Zotero libraries and export items with metadata, highlights, notes, and PDFs.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:vscodezotero.searchAndExport",
+    "onCommand:vscodezotero.exportCollection",
+    "onCommand:vscodezotero.configurePaths"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "vscodezotero.searchAndExport",
+        "title": "Zotero: Search And Export Items"
+      },
+      {
+        "command": "vscodezotero.exportCollection",
+        "title": "Zotero: Export Collection"
+      },
+      {
+        "command": "vscodezotero.configurePaths",
+        "title": "Zotero: Configure Local Paths"
+      }
+    ],
+    "configuration": {
+      "title": "VS Code Zotero Export",
+      "properties": {
+        "vscodezotero.sqlitePath": {
+          "type": "string",
+          "description": "Absolute path to zotero.sqlite. If empty, auto-discovery is used.",
+          "default": ""
+        },
+        "vscodezotero.storagePath": {
+          "type": "string",
+          "description": "Absolute path to Zotero storage folder. If empty, defaults to sibling storage directory next to zotero.sqlite.",
+          "default": ""
+        },
+        "vscodezotero.outputPath": {
+          "type": "string",
+          "description": "Absolute folder path where exports are written. If empty, the extension asks once and saves it.",
+          "default": ""
+        },
+        "vscodezotero.outputFolderName": {
+          "type": "string",
+          "description": "Folder name created in the workspace root for exports.",
+          "default": "articles"
+        },
+        "vscodezotero.layoutMode": {
+          "type": "string",
+          "description": "Export file layout mode. If empty, the extension asks once and saves your choice.",
+          "default": "",
+          "enum": ["", "item-folder", "flat", "year-item"]
+        },
+        "vscodezotero.maxSearchResults": {
+          "type": "number",
+          "description": "Maximum search results shown in quick pick.",
+          "default": 200,
+          "minimum": 20,
+          "maximum": 1000
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "sql.js": "^1.13.0",
+    "turndown": "^7.2.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.13.1",
+    "@types/sql.js": "^1.4.9",
+    "@types/turndown": "^5.0.5",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.8"
+  }
+}
