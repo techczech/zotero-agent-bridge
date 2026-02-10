@@ -2,7 +2,7 @@
   "name": "vscodezotero",
   "displayName": "VS Code Zotero Export",
   "description": "Search local Zotero libraries and export items with metadata, highlights, notes, and PDFs.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "local",
   "engines": {
     "vscode": "^1.90.0"
@@ -58,7 +58,12 @@
           "type": "string",
           "description": "Export file layout mode. If empty, the extension asks once and saves your choice.",
           "default": "",
-          "enum": ["", "item-folder", "flat", "year-item"]
+          "enum": [
+            "",
+            "item-folder",
+            "flat",
+            "year-item"
+          ]
         },
         "vscodezotero.maxSearchResults": {
           "type": "number",
