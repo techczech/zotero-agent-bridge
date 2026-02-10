@@ -20,6 +20,8 @@ interface BaseItemRow {
   title: string | null;
   creatorsText: string | null;
   date: string | null;
+  dateAdded: string | null;
+  dateModified: string | null;
   doi: string | null;
   tagsText: string | null;
   pdfCount: number | null;
@@ -67,6 +69,8 @@ function mapSummary(row: BaseItemRow): ZoteroItemSummary {
     creatorsText: row.creatorsText?.trim() || '',
     date: row.date ?? undefined,
     year: extractYear(row.date ?? undefined),
+    dateAdded: row.dateAdded ?? undefined,
+    dateModified: row.dateModified ?? undefined,
     doi: row.doi ?? undefined,
     tagsText: row.tagsText ?? undefined,
     pdfCount,
@@ -81,7 +85,7 @@ WITH filtered_items AS (
   ${idSourceSql}
 ),
 base AS (
-  SELECT i.itemID, i.key, i.libraryID, i.itemTypeID, i.dateModified
+  SELECT i.itemID, i.key, i.libraryID, i.itemTypeID, i.dateAdded, i.dateModified
   FROM items i
   JOIN filtered_items fi ON fi.itemID = i.itemID
 ),
@@ -161,6 +165,8 @@ SELECT
   it.typeName AS itemType,
   fv.title,
   fv.date,
+  b.dateAdded,
+  b.dateModified,
   fv.doi,
   cv.creatorsText,
   tv.tagsText,

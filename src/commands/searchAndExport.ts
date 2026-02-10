@@ -3,6 +3,7 @@ import { openZoteroDatabase } from '../zotero/db';
 import { searchItems } from '../zotero/queries';
 import { resolveZoteroPaths } from '../zotero/pathDiscovery';
 import { confirmSelection, promptLayoutMode, runExport } from './shared';
+import { pickItemsWithThreeLineView } from './threeLineItemPicker';
 
 export async function searchAndExportCommand(outputChannel: vscode.OutputChannel): Promise<void> {
   const searchText = await vscode.window.showInputBox({
@@ -31,28 +32,14 @@ export async function searchAndExportCommand(outputChannel: vscode.OutputChannel
 
     let selectedItems: typeof matches = [];
     while (true) {
-      const selected = await vscode.window.showQuickPick(
-        matches.map((item) => ({
-          label: `[PDF ${item.pdfCount} | N ${item.noteCount}] ${item.title}`,
-          description: `${item.creatorsText || 'Unknown creator'} • ${item.year || 'n.d.'}`,
-          detail: `${item.libraryName} • ${item.itemType} • key: ${item.key}`,
-          item,
-        })),
-        {
-          canPickMany: true,
-          title: 'Select Zotero items to export',
-          placeHolder: `${matches.length} results`,
-          matchOnDescription: true,
-          matchOnDetail: true,
-        },
-      );
+      const selected = await pickItemsWithThreeLineView(matches);
 
       if (!selected || selected.length === 0) {
         vscode.window.showInformationMessage('No items selected.');
         return;
       }
 
-      selectedItems = selected.map((pick) => pick.item);
+      selectedItems = selected;
       const decision = await confirmSelection(selectedItems, {
         allowReselect: true,
         outputChannel,

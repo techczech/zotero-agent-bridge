@@ -70,6 +70,8 @@ export interface ZoteroItemSummary {
   creatorsText: string;
   date?: string;
   year?: string;
+  dateAdded?: string;
+  dateModified?: string;
   doi?: string;
   tagsText?: string;
   pdfCount: number;
