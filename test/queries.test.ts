@@ -1,9 +1,11 @@
 import initSqlJs, { type Database } from 'sql.js';
 import { describe, expect, it } from 'vitest';
 import {
+  getAllTopLevelItemSummaries,
   getCollectionItemSummaries,
   getItemExportData,
   getLibraries,
+  getUpdatedItemSummariesSince,
   searchItems,
 } from '../src/zotero/queries';
 
@@ -76,9 +78,18 @@ CREATE TABLE itemAnnotations (
   db.run(`
 INSERT INTO items (itemID, itemTypeID, libraryID, key, parentItemID, dateAdded, dateModified)
 VALUES
-  (1, 1, 1, 'ITEM1KEY', NULL, '2024-01-01', '2024-01-02'),
-  (2, 1, 2, 'ITEM2KEY', NULL, '2024-01-01', '2024-01-03'),
-  (11, 2, 1, 'ATTACH1', 1, '2024-01-01', '2024-01-02');
+  (1, 1, 1, 'ITEM1KEY', NULL, '2024-01-01 00:00:00', '2024-01-02 12:00:00'),
+  (2, 1, 2, 'ITEM2KEY', NULL, '2024-01-01 00:00:00', '2024-01-01 12:00:00'),
+  (3, 1, 1, 'ITEM3KEY', NULL, '2024-01-01 00:00:00', '2024-01-01 12:00:00'),
+  (4, 1, 1, 'ITEM4KEY', NULL, '2024-01-01 00:00:00', '2024-01-01 12:00:00'),
+  (11, 2, 1, 'ATTACH1', 1, '2024-01-01 00:00:00', '2024-01-02 12:00:00'),
+  (12, 2, 2, 'ATTACH2', 2, '2024-01-01 00:00:00', '2024-01-01 12:00:00'),
+  (13, 2, 1, 'ATTACH3', 3, '2024-01-01 00:00:00', '2024-01-01 12:00:00'),
+  (21, 3, 1, 'NOTE1', 1, '2024-01-02 12:00:00', '2024-01-02 12:00:00'),
+  (22, 3, 1, 'NOTE2', 11, '2024-01-02 12:00:00', '2024-01-02 12:00:00'),
+  (23, 3, 2, 'NOTE3', 2, '2024-01-04 12:00:00', '2024-01-04 12:00:00'),
+  (31, 4, 1, 'ANN1', 11, '2024-01-02 12:00:00', '2024-01-02 12:00:00'),
+  (33, 4, 1, 'ANN3', 13, '2024-01-06 12:00:00', '2024-01-06 12:00:00');
 `);
 
   db.run(`
@@ -99,7 +110,9 @@ VALUES
   (3, '10.1234/demo'),
   (4, 'Demo abstract'),
   (5, 'Cognitive Science'),
-  (6, 'Group Library Paper');
+  (6, 'Group Library Paper'),
+  (7, 'Annotation-Driven Paper'),
+  (8, 'Unchanged Paper');
 `);
 
   db.run(`
@@ -110,7 +123,9 @@ VALUES
   (1, 3, 3),
   (1, 4, 4),
   (1, 5, 5),
-  (2, 1, 6);
+  (2, 1, 6),
+  (3, 1, 7),
+  (4, 1, 8);
 `);
 
   db.run(`INSERT INTO creators (creatorID, firstName, lastName, fieldMode) VALUES (1, 'Edwin', 'Hutchins', 0);`);
@@ -131,19 +146,25 @@ VALUES
 
   db.run(`
 INSERT INTO itemAttachments (itemID, parentItemID, contentType, linkMode, path)
-VALUES (11, 1, 'application/pdf', 1, 'storage:paper.pdf');
+VALUES
+  (11, 1, 'application/pdf', 1, 'storage:paper.pdf'),
+  (12, 2, 'application/pdf', 1, 'storage:paper-2.pdf'),
+  (13, 3, 'application/pdf', 1, 'storage:paper-3.pdf');
 `);
 
   db.run(`
 INSERT INTO itemNotes (itemID, parentItemID, title, note)
 VALUES
   (21, 1, 'Item Note', '<p>Item note content</p>'),
-  (22, 11, 'Attachment Note', '<p>Attachment note content</p>');
+  (22, 11, 'Attachment Note', '<p>Attachment note content</p>'),
+  (23, 2, 'Updated Child Note', '<p>Updated note content</p>');
 `);
 
   db.run(`
 INSERT INTO itemAnnotations (itemID, parentItemID, type, text, comment, color, pageLabel, sortIndex, position)
-VALUES (31, 11, 'highlight', 'Important quote', 'Good point', '#ff0', '4', '0001', '{}');
+VALUES
+  (31, 11, 'highlight', 'Important quote', 'Good point', '#ff0', '4', '0001', '{}'),
+  (33, 13, 'highlight', 'Updated highlight', 'Newly added highlight', '#ff0', '7', '0001', '{}');
 `);
 
   return db;
@@ -197,6 +218,93 @@ describe('zotero queries', () => {
       expect(item.attachments[0].isPdf).toBe(true);
       expect(item.notes.length).toBe(2);
       expect(item.annotations.length).toBe(1);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('returns all top-level exportable items for first-run sync', async () => {
+    const db = await createDb();
+    try {
+      const items = getAllTopLevelItemSummaries(db);
+      expect(items.map((item) => item.key).sort()).toEqual([
+        'ITEM1KEY',
+        'ITEM2KEY',
+        'ITEM3KEY',
+        'ITEM4KEY',
+      ]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('includes parent-modified items after checkpoint', async () => {
+    const db = await createDb();
+    try {
+      const items = getUpdatedItemSummariesSince(
+        db,
+        '2024-01-01T23:59:59.000Z',
+        '2024-01-03T00:00:00.000Z',
+      );
+      expect(items.map((item) => item.key)).toContain('ITEM1KEY');
+    } finally {
+      db.close();
+    }
+  });
+
+  it('includes parent item when only child note changed', async () => {
+    const db = await createDb();
+    try {
+      const items = getUpdatedItemSummariesSince(
+        db,
+        '2024-01-03T00:00:00.000Z',
+        '2024-01-05T00:00:00.000Z',
+      );
+      expect(items.map((item) => item.key)).toContain('ITEM2KEY');
+    } finally {
+      db.close();
+    }
+  });
+
+  it('includes parent item when only child annotation changed', async () => {
+    const db = await createDb();
+    try {
+      const items = getUpdatedItemSummariesSince(
+        db,
+        '2024-01-05T00:00:00.000Z',
+        '2024-01-07T00:00:00.000Z',
+      );
+      expect(items.map((item) => item.key)).toContain('ITEM3KEY');
+    } finally {
+      db.close();
+    }
+  });
+
+  it('excludes unchanged items from incremental query', async () => {
+    const db = await createDb();
+    try {
+      const items = getUpdatedItemSummariesSince(
+        db,
+        '2024-01-02T00:00:00.000Z',
+        '2024-01-07T00:00:00.000Z',
+      );
+      expect(items.map((item) => item.key)).not.toContain('ITEM4KEY');
+    } finally {
+      db.close();
+    }
+  });
+
+  it('applies inclusive upper-bound filtering for incremental query', async () => {
+    const db = await createDb();
+    try {
+      const inclusive = getUpdatedItemSummariesSince(
+        db,
+        '2024-01-03T00:00:00.000Z',
+        '2024-01-04T12:00:00.000Z',
+      );
+      const keys = inclusive.map((item) => item.key);
+      expect(keys).toContain('ITEM2KEY');
+      expect(keys).not.toContain('ITEM3KEY');
     } finally {
       db.close();
     }

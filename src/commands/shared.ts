@@ -247,6 +247,7 @@ export async function runExport(
     outputRootPathOverride?: string;
     suppressCompletionMessage?: boolean;
     completionLabel?: string;
+    resolveConflictOverride?: (existingTarget: string, item: ZoteroItem) => Promise<ConflictDecision>;
   },
 ): Promise<ExportResult | undefined> {
   if (itemSummaries.length === 0) {
@@ -264,13 +265,16 @@ export async function runExport(
   outputChannel.appendLine(`Using storage: ${storagePath}`);
   outputChannel.appendLine(`Workspace root: ${workspaceRoot}`);
   outputChannel.appendLine(`Export destination: ${outputRootPath}`);
+  const exportHighlightsAsMarkdownFiles =
+    vscode.workspace.getConfiguration('vscodezotero').get<boolean>('exportHighlightsAsMarkdownFiles') ?? false;
 
   const result = await exportItems(db, itemSummaries, {
     outputRootPath,
     layoutMode,
     storagePath,
+    exportHighlightsAsMarkdownFiles,
     outputChannel,
-    resolveConflict: promptConflictDecision,
+    resolveConflict: options?.resolveConflictOverride ?? promptConflictDecision,
     selectPdfAttachments: promptPdfSelection,
   });
 

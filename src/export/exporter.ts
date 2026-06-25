@@ -6,13 +6,16 @@ import {
   type ExportOptions,
   type ExportResult,
   type LayoutMode,
+  type ZoteroAnnotation,
   type ZoteroAttachment,
   type ZoteroItem,
   type ZoteroItemSummary,
   type ZoteroNote,
 } from '../types';
 import { buildMarkdown } from './markdown';
+import { buildHighlightMarkdown } from './highlightMarkdown';
 import {
+  type ItemOutputPaths,
   buildItemSlug,
   makeUniqueFilePath,
   pathExists,
@@ -119,6 +122,59 @@ function appendWarning(result: ExportResult, outputChannel: ExportOptions['outpu
   outputChannel.appendLine(`[warning] ${warning}`);
 }
 
+function isHighlightAnnotation(annotation: ZoteroAnnotation): boolean {
+  const annotationType = annotation.type?.trim().toLowerCase();
+  return annotationType === undefined || annotationType.length === 0 || annotationType === 'highlight';
+}
+
+function toWikiLink(fromFilePath: string, targetMarkdownPath: string): string {
+  const relativePath = path.relative(path.dirname(fromFilePath), targetMarkdownPath).replace(/\\/g, '/');
+  const withoutExt = relativePath.replace(/\.md$/i, '');
+  return `[[${withoutExt}]]`;
+}
+
+function getHighlightFilePath(
+  outputRoot: string,
+  outputPaths: ItemOutputPaths,
+  highlightId: string,
+): string {
+  const filename = `highlight-${highlightId}.md`;
+  if (outputPaths.itemFolder) {
+    return path.join(outputPaths.itemFolder, 'highlights', filename);
+  }
+
+  return path.join(outputRoot, `${outputPaths.flatPrefix ?? ''}${filename}`);
+}
+
+async function exportHighlightMarkdownFiles(
+  outputRoot: string,
+  outputPaths: ItemOutputPaths,
+  item: ZoteroItem,
+  highlights: ZoteroAnnotation[],
+  exportedAt: Date,
+): Promise<number> {
+  let exportedCount = 0;
+  for (const [index, highlight] of highlights.entries()) {
+    const highlightId = String(index + 1).padStart(3, '0');
+    const highlightPath = getHighlightFilePath(outputRoot, outputPaths, highlightId);
+    await fs.mkdir(path.dirname(highlightPath), { recursive: true });
+
+    const markdown = buildHighlightMarkdown({
+      itemKey: item.key,
+      itemTags: item.tags,
+      highlight,
+      highlightIndex: index + 1,
+      sourceLink: toWikiLink(highlightPath, outputPaths.markdownPath),
+      exportedAt,
+    });
+
+    await fs.writeFile(highlightPath, markdown, 'utf8');
+    exportedCount += 1;
+  }
+
+  return exportedCount;
+}
+
 export async function exportItems(
   db: Database,
   itemSummaries: ZoteroItemSummary[],
@@ -133,6 +189,7 @@ export async function exportItems(
     failed: 0,
     cancelled: false,
     warnings: [],
+    itemOutcomes: [],
   };
 
   for (const summary of itemSummaries) {
@@ -141,6 +198,7 @@ export async function exportItems(
       const slug = buildItemSlug(item);
       const outputPaths = resolveItemOutputPaths(outputRoot, options.layoutMode, slug, item.year);
       const existingTarget = outputPaths.itemFolder ?? outputPaths.markdownPath;
+      let outcomeAction: 'exported-new' | 'exported-overwrite' = 'exported-new';
 
       if (await pathExists(existingTarget)) {
         const decision = await options.resolveConflict(existingTarget, item);
@@ -150,6 +208,13 @@ export async function exportItems(
         }
         if (decision === 'skip') {
           result.skipped += 1;
+          result.itemOutcomes.push({
+            itemId: item.itemId,
+            key: item.key,
+            title: item.title,
+            action: 'skipped-conflict',
+            targetPath: existingTarget,
+          });
           continue;
         }
 
@@ -159,6 +224,7 @@ export async function exportItems(
           outputPaths.itemFolder,
           outputPaths.flatPrefix,
         );
+        outcomeAction = 'exported-overwrite';
       }
 
       await fs.mkdir(path.dirname(outputPaths.markdownPath), { recursive: true });
@@ -209,11 +275,13 @@ export async function exportItems(
       const filteredHighlights = item.annotations.filter((annotation) =>
         selectedPdfIds.has(annotation.parentItemId),
       );
+      const fileHighlights = filteredHighlights.filter(isHighlightAnnotation);
 
       const filteredNotes = item.notes.filter(
         (note) => note.parentItemId === item.itemId || selectedPdfIds.has(note.parentItemId),
       );
       const noteMarkdown = await convertNotesToMarkdown(filteredNotes);
+      const exportedAt = options.now ?? new Date();
 
       const markdown = buildMarkdown({
         item,
@@ -221,15 +289,43 @@ export async function exportItems(
         exportedAttachmentFilenames: copiedPdfNames,
         highlights: filteredHighlights,
         notes: noteMarkdown,
-        exportedAt: options.now ?? new Date(),
+        exportedAt,
       });
 
       await fs.writeFile(outputPaths.markdownPath, markdown, 'utf8');
+
+      if (options.exportHighlightsAsMarkdownFiles) {
+        const highlightFileCount = await exportHighlightMarkdownFiles(
+          outputRoot,
+          outputPaths,
+          item,
+          fileHighlights,
+          exportedAt,
+        );
+        options.outputChannel.appendLine(
+          `Exported ${highlightFileCount} highlight file(s) for ${item.key}.`,
+        );
+      }
+
       result.exported += 1;
+      result.itemOutcomes.push({
+        itemId: item.itemId,
+        key: item.key,
+        title: item.title,
+        action: outcomeAction,
+        targetPath: outputPaths.markdownPath,
+      });
       options.outputChannel.appendLine(`Exported ${item.key} -> ${outputPaths.markdownPath}`);
     } catch (error) {
       result.failed += 1;
       const message = error instanceof Error ? error.message : String(error);
+      result.itemOutcomes.push({
+        itemId: summary.itemId,
+        key: summary.key,
+        title: summary.title,
+        action: 'failed',
+        error: message,
+      });
       options.outputChannel.appendLine(
         `[error] Failed exporting item ${summary.key} (${summary.title}): ${message}`,
       );
