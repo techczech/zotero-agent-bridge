@@ -1,0 +1,21 @@
+{
+  "name": "zotero-extension-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Remotion video showcasing the VS Code Zotero Export workflow",
+  "scripts": {
+    "dev": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts ZoteroResearchWorkflow out/zotero-research-workflow.mp4"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "remotion": "^4.0.421"
+  },
+  "devDependencies": {
+    "@remotion/cli": "^4.0.421",
+    "@types/react": "^19.2.13",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}

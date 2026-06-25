@@ -300,6 +300,69 @@ WHERE collectionID = ?
   return getItemSummariesByIds(db, itemIds, limit);
 }
 
+export function getAllTopLevelItemSummaries(db: Database, limit = 10_000): ZoteroItemSummary[] {
+  const itemRows = runQuery<{ itemID: number }>(
+    db,
+    `
+SELECT i.itemID
+FROM items i
+JOIN itemTypes it ON it.itemTypeID = i.itemTypeID
+WHERE it.typeName NOT IN ('attachment', 'note', 'annotation')
+  AND i.parentItemID IS NULL
+`,
+  );
+
+  const itemIds = itemRows.map((row) => Number(row.itemID));
+  return getItemSummariesByIds(db, itemIds, limit);
+}
+
+export function getUpdatedItemSummariesSince(
+  db: Database,
+  sinceIso: string,
+  untilIso?: string,
+): ZoteroItemSummary[] {
+  const params: (string | number | null)[] = [sinceIso];
+  let untilClause = '';
+  if (untilIso) {
+    untilClause = 'AND datetime(COALESCE(i.dateModified, i.dateAdded)) <= datetime(?)';
+    params.push(untilIso);
+  }
+
+  const itemRows = runQuery<{ itemID: number }>(
+    db,
+    `
+WITH RECURSIVE top_level AS (
+  SELECT i.itemID
+  FROM items i
+  JOIN itemTypes it ON it.itemTypeID = i.itemTypeID
+  WHERE it.typeName NOT IN ('attachment', 'note', 'annotation')
+    AND i.parentItemID IS NULL
+),
+descendants(rootItemID, itemID) AS (
+  SELECT tl.itemID AS rootItemID, tl.itemID AS itemID
+  FROM top_level tl
+  UNION ALL
+  SELECT d.rootItemID, child.itemID
+  FROM descendants d
+  JOIN items child ON child.parentItemID = d.itemID
+),
+updated_roots AS (
+  SELECT DISTINCT d.rootItemID
+  FROM descendants d
+  JOIN items i ON i.itemID = d.itemID
+  WHERE datetime(COALESCE(i.dateModified, i.dateAdded)) > datetime(?)
+  ${untilClause}
+)
+SELECT rootItemID AS itemID
+FROM updated_roots
+`,
+    params,
+  );
+
+  const itemIds = itemRows.map((row) => Number(row.itemID));
+  return getItemSummariesByIdsUnbounded(db, itemIds);
+}
+
 function getItemSummariesByIds(db: Database, itemIds: number[], limit: number): ZoteroItemSummary[] {
   if (itemIds.length === 0) {
     return [];
@@ -559,15 +622,17 @@ function getAnnotationsForAttachments(db: Database, attachmentIds: number[]): Zo
     comment: string | null;
     color: string | null;
     pageLabel: string | null;
+    created: string | null;
     sortIndex: string | null;
     position: string | null;
   }>(
     db,
     `
-SELECT itemID, parentItemID, type, text, comment, color, pageLabel, sortIndex, position
-FROM itemAnnotations
-WHERE parentItemID IN (${placeholders})
-ORDER BY parentItemID ASC, sortIndex ASC, itemID ASC
+SELECT ia.itemID, ia.parentItemID, ia.type, ia.text, ia.comment, ia.color, ia.pageLabel, i.dateAdded AS created, ia.sortIndex, ia.position
+FROM itemAnnotations ia
+LEFT JOIN items i ON i.itemID = ia.itemID
+WHERE ia.parentItemID IN (${placeholders})
+ORDER BY ia.parentItemID ASC, ia.sortIndex ASC, ia.itemID ASC
 `,
     attachmentIds,
   );
@@ -580,6 +645,7 @@ ORDER BY parentItemID ASC, sortIndex ASC, itemID ASC
     comment: row.comment ?? undefined,
     color: row.color ?? undefined,
     pageLabel: row.pageLabel ?? undefined,
+    created: row.created ?? undefined,
     sortIndex: row.sortIndex ?? undefined,
     position: row.position ?? undefined,
   }));

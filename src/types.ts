@@ -34,6 +34,7 @@ export interface ZoteroAnnotation {
   comment?: string;
   color?: string;
   pageLabel?: string;
+  created?: string;
   sortIndex?: string;
   position?: string;
 }
@@ -113,10 +114,26 @@ export interface ExportOptions {
   outputRootPath: string;
   layoutMode: LayoutMode;
   storagePath: string;
+  exportHighlightsAsMarkdownFiles: boolean;
   outputChannel: LogChannel;
   resolveConflict: (existingTarget: string, item: ZoteroItem) => Promise<ConflictDecision>;
   selectPdfAttachments: (item: ZoteroItem, pdfAttachments: ZoteroAttachment[]) => Promise<ZoteroAttachment[]>;
   now?: Date;
+}
+
+export type ExportItemOutcomeAction =
+  | 'exported-new'
+  | 'exported-overwrite'
+  | 'skipped-conflict'
+  | 'failed';
+
+export interface ExportItemOutcome {
+  itemId: number;
+  key: string;
+  title: string;
+  action: ExportItemOutcomeAction;
+  targetPath?: string;
+  error?: string;
 }
 
 export interface ExportResult {
@@ -125,6 +142,7 @@ export interface ExportResult {
   failed: number;
   cancelled: boolean;
   warnings: string[];
+  itemOutcomes: ExportItemOutcome[];
 }
 
 export interface ResolvedZoteroPaths {

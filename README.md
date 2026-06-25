@@ -27,6 +27,7 @@ Local-first Zotero export for VS Code-compatible editors, designed for AI-assist
 
 - `Zotero: Search And Export Items`
 - `Zotero: Export Collection`
+- `Zotero: Export Updates Since Last Sync`
 - `Zotero: Configure Local Paths`
 
 ## Keyboard Shortcut
@@ -58,6 +59,7 @@ Per exported Zotero item:
 
 - Markdown file with YAML frontmatter metadata
 - `Highlights` section from PDF annotations
+- Optional per-highlight Markdown files with structured YAML frontmatter
 - `Notes` section from Zotero child notes
 - PDF copy (if available and selected)
 
@@ -69,6 +71,16 @@ Collection exports create a collection-named folder inside your export root.
 
 - `Single collection folder`: all selected collection items into one folder
 - `Mirror sub-collections`: preserve nested collection structure as subfolders
+
+## Incremental Updates Export
+
+Run `Zotero: Export Updates Since Last Sync` to export only items changed since the last successful updates run.
+
+- First run: exports all top-level items and creates the workspace checkpoint.
+- Next runs: exports only items changed since checkpoint (including child note/highlight/annotation changes).
+- Changed existing exports use one batch prompt for the run (`Overwrite all changed`, `Skip all changed`, `Cancel`).
+- A persistent sync log is appended to `<output folder>/zotero-updates-log.md`.
+- Checkpoint advances only when the run finishes with zero skipped, failed, or cancelled items.
 
 ## Path Setup and Options
 
@@ -102,6 +114,11 @@ Or set workspace settings directly:
 
 - `vscodezotero.maxSearchResults`  
   Max results shown in picker (default `200`, min `20`, max `1000`).
+
+- `vscodezotero.exportHighlightsAsMarkdownFiles`  
+  If `true`, exports each highlight as its own `.md` file.
+  - `item-folder` / `year-item`: `.../<item>/highlights/highlight-001.md`
+  - `flat`: `.../<slug>__highlight-001.md`
 
 ## Typical Agent Workflows
 

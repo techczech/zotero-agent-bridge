@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { exportCollectionCommand } from './commands/exportCollection';
+import { exportUpdatesCommand } from './commands/exportUpdates';
 import { searchAndExportCommand } from './commands/searchAndExport';
 import { configureZoteroPaths } from './zotero/pathDiscovery';
 
@@ -29,6 +30,19 @@ export function activate(context: vscode.ExtensionContext): void {
         outputChannel.appendLine(`[error] ${message}`);
         outputChannel.show(true);
         vscode.window.showErrorMessage(`Zotero collection export failed: ${message}`);
+      }
+    }),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('vscodezotero.exportUpdates', async () => {
+      try {
+        await exportUpdatesCommand(context, outputChannel);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        outputChannel.appendLine(`[error] ${message}`);
+        outputChannel.show(true);
+        vscode.window.showErrorMessage(`Zotero updates export failed: ${message}`);
       }
     }),
   );
