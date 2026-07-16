@@ -1,3 +1,14 @@
+---
+name: "VS Code Zotero Bridge"
+description: "Bridges a local Zotero library into AI-assisted writing environments without relying on a remote research database."
+categories: [desktop-apps, desktop-app, built-by-ai, delegated-to-ai]
+updated: 2026-07-16
+deployments:
+  Release:
+    "Latest release": https://github.com/techczech/zotero-agent-bridge/releases/latest
+  Source:
+    "Project repository": https://github.com/techczech/zotero-agent-bridge
+---
 # Zotero Agent Bridge for VS Code/Cursor
 
 Local-first Zotero export for VS Code-compatible editors, designed for AI-assisted academic writing workflows.
